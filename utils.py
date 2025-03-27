@@ -47,6 +47,7 @@ def build_pyg_dl(x, a, y, num_edge_features, device):
     edge_attr = []
     for edge_attr_idx in range(num_edge_features):
         Af = a[:, :, edge_attr_idx]
+        Af.fill_diagonal_(1)
         edge_index, attrf = dense_to_sparse(Af)
         edge_attr.append(attrf)
     
@@ -88,7 +89,6 @@ def fill_diag(x):
     x_diag = np.zeros((num_bands, num_channels, num_channels))
     for band_idx, band in enumerate(x):
         for idx, i in enumerate(band):
-            #j_diag.append(1)
             x_diag[band_idx, idx, idx] = 0
             if idx == 0:
                 x_diag[band_idx, idx, 1:] = i

@@ -60,6 +60,13 @@ def get_label(file):
         return [2]
         
     
+def get_MMSE(file):
+    files_data = pd.read_csv('../../../../../ds004504/participants.tsv', sep="\t")
+    idx = file.split("/")[-3]
+    label = np.array(files_data[files_data["participant_id"] == idx]["MMSE"])[0]
+    return label
+
+    
 import json
 def data_annotations_caueeg(file):
     f = open('../../../../caueeg/signal/dementia-no-overlap.json')
@@ -187,50 +194,6 @@ def break_all_array(x, size):
     chunk_array = np.array(chunk_array)
     return chunk_array
 
-
-import numpy as np
-
-def stack_arrays(x, g, y):
-    out_x = np.moveaxis(np.float16(x[0]), 0, 1)
-    out_g = np.moveaxis(np.float16(g[0]), 0, -1)
-    out_g = np.moveaxis(out_g, 0, -1)
-    out_y = [y[0] for _ in range(out_x.shape[0])]
-    for arr, gr, yl in zip(x[1:], g[1:], y[1:]):
-        arr = np.float16(arr)
-        arr = np.moveaxis(arr, 0, 1)
-        out_x = np.concatenate((out_x, arr), axis=0)
-        gr = np.array(gr)
-        gr = np.moveaxis(gr, 0, -1)
-        gr = np.moveaxis(gr, 0, -1)
-        out_g = np.concatenate((out_g, gr), axis=0)
-        out_y.extend([yl for _ in range(arr.shape[0])])
-    out_y = np.array(out_y)
-    out_x = np.moveaxis(out_x, 1, 2)
-    out_x = np.moveaxis(out_x, 2, -1)
-    out_g = out_g.reshape(out_x.shape[0], 19, 19, 12)
-    return out_x, out_g, out_y
-
-import numpy as np
-
-def stack_arrays(x, g, y):
-    out_x = np.float16(x[0])# np.moveaxis(np.float16(x[0]), 0, 1)
-    out_g = np.moveaxis(np.float16(g[0]), 0, -1)
-    out_g = np.moveaxis(out_g, 0, -1)
-    out_y = [y[0] for _ in range(out_x.shape[0])]
-    for arr, gr, yl in zip(x[1:], g[1:], y[1:]):
-        arr = np.float16(arr)
-        #arr = np.moveaxis(arr, 0, 1)
-        out_x = np.concatenate((out_x, arr), axis=0)
-        gr = np.array(gr)
-        gr = np.moveaxis(gr, 0, -1)
-        gr = np.moveaxis(gr, 0, -1)
-        out_g = np.concatenate((out_g, gr), axis=0)
-        out_y.extend([yl for _ in range(arr.shape[0])])
-    out_y = np.array(out_y)
-    #out_x = np.moveaxis(out_x, 1, 2)
-    out_x = np.moveaxis(out_x, 2, -1)
-    out_g = out_g.reshape(out_x.shape[0], 19, 19, 15)
-    return out_x, out_g, out_y
 
 
 import numpy as np
@@ -390,6 +353,42 @@ def stack_arrays(x, g, y, task):
     out_g = out_g.reshape(out_g.shape[0], 19, 19, 15)
     return out_x, out_g, out_y
 
+
+import numpy as np
+
+def stack_arrays(x, g, y, task):
+    out_g = np.moveaxis(g[0], 0, -1)
+    out_g = np.moveaxis(out_g, 0, -1)
+    out_y = [y[0] for _ in range(out_g.shape[0])]
+    out_x = np.moveaxis(x[0], 1, -1)
+    #out_x = np.moveaxis(out_x, 1, 2)
+    for arr, gr, yl in zip(x[1:], g[1:], y[1:]):
+        gr = np.array(gr)
+        gr = np.moveaxis(gr, 0, -1)
+        gr = np.moveaxis(gr, 0, -1)
+        arr = np.moveaxis(arr, 1, -1)
+        #arr = np.moveaxis(arr, 1, 2)
+        out_g = np.concatenate((out_g, gr), axis=0)
+        out_x = np.concatenate((out_x, arr), axis=0)
+        out_y.extend([yl for _ in range(arr.shape[0])])
+        
+    out_y_ = []
+    if task == "FTD" or task == "FTDandADvsControl":
+        for y in out_y:
+            if y[0] == 2:
+                out_y_.append([y[0]-1])
+            else:
+                out_y_.append(y)
+    elif task == "FTDvsAD":
+        for y in out_y:
+            out_y_.append([y[0]-1])
+    else:
+        out_y_ = out_y
+
+    out_y = np.array(out_y_)
+    out_g = out_g.reshape(out_g.shape[0], 19, 19, 15)
+    return out_x, out_g, out_y
+
 import spkit as sp
 
 def normalize(data: np.ndarray, dim=1, norm="l2") -> np.ndarray:
@@ -409,8 +408,8 @@ def normalize(data: np.ndarray, dim=1, norm="l2") -> np.ndarray:
 from mne_connectivity import spectral_connectivity_epochs, SpectralConnectivity, envelope_correlation
     
 
+
 import neurokit2 as nk
-#from scipy.stats import differential_entropy
 
 from scipy import signal, stats
 def cal_features(data):
@@ -418,7 +417,7 @@ def cal_features(data):
     out_dict = {}
     for k, v in data.items():
         signals = v*1e6#+1e-5
-        out = np.zeros((signals.shape[0], signals.shape[1], signals.shape[2], 10))
+        out = np.zeros((signals.shape[0], signals.shape[1], signals.shape[2], 11))
         #signals = signals
         shapes = signals.shape
         for band_idx in tqdm(range(shapes[0])):
@@ -427,7 +426,9 @@ def cal_features(data):
                     signal_ch = signals[band_idx, epoch_idx, ch_idx, :]
                     #signal_ch = (signal_ch - signal_ch.min())/(signal_ch.max() - signal_ch.min())+1e-5
                     #diffen = differential_entropy(signal_ch)
-                    #diffen, _ = nk.entropy_differential(signal_ch)
+                    diffen, _ = nk.complexity_diffen(signal_ch)
+                    if diffen == -np.inf:
+                        diffen = 0.0
                     SpEn, _ = nk.entropy_spectral(signal_ch, show=False)
                     complexity, _ = nk.complexity_hjorth(signal_ch)
                     powen, _ = nk.entropy_power(signal_ch)
@@ -443,7 +444,7 @@ def cal_features(data):
                     mean = np.mean(signal_ch)
                     std = np.std(signal_ch)
                     #sampen, _ = nk.entropy_sample(signal_ch, delay=1, dimension=2)
-                    signals_features = [complexity, SpEn, klen, phasen, powen, 
+                    signals_features = [diffen, complexity, SpEn, klen, phasen, powen, 
                                         dfd, Pxx_den, mean, std, kurtosis]
                     out[band_idx, epoch_idx, ch_idx, :] = signals_features
         out_dict[k] = out
@@ -533,8 +534,8 @@ def build_data(raw_data, size, files_data, cal_conn=None, raw_eeg=False,
         data_labels[file] = label
         
         freq_ranges = [[1, 4],[4, 8], [8, 13], [13, 30], [30, 45]]
-        
         """
+        
         print("connectivity")
         if cal_conn=="all": 
             conn_methods = ["coh", "pli", "plv"]
@@ -583,12 +584,12 @@ def build_data(raw_data, size, files_data, cal_conn=None, raw_eeg=False,
 
             print("Conns", np.array(band_c).shape)
             data_graphs[file] = band_c
-          """
           
+          """
         signal_dur = int(data_epochs.shape[-1]/resamling_fs)           
         resamling_fs = 128
         data_epochs = signal.resample(data_epochs, signal_dur*resamling_fs, axis=-1)
-        
+        """
         filtered_eeg = []
         freq_ranges = [[1, 4], [4, 8], [8, 13], [13, 30], [30, 45]]
         for freq_band in freq_ranges:
@@ -608,8 +609,8 @@ def build_data(raw_data, size, files_data, cal_conn=None, raw_eeg=False,
             for eeg in filtered_eeg:
                 data_features.append(signal.resample(eeg, size*resamling_fs, axis=-1)) #sample all signals to same sf
             data_features = np.array(data_features)
-            
-        #data_features = data_epochs
+        """    
+        data_features = data_epochs
         all_data_features[file] = np.array(data_features).squeeze()
         
     return all_data_features, data_graphs, data_labels, ch_names

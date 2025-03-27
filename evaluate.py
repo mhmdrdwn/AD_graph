@@ -131,7 +131,7 @@ def avg_accuracy(all_cm, all_y):
     spec = (TN)/(TN+FP)
     prec = (TP)/(TP+FP)
     f1 = (2*prec*sen)/(prec+sen)
-    return acc, sen, spec, f1
+    return acc, sen, spec, prec, f1
 
 
 

@@ -14,7 +14,7 @@ import matplotlib
 from mpl_toolkits.axes_grid1 import ImageGrid
 
 
-def plot_edges(importance, sub):
+def plot_edges(importance, sub, min_max=None):
     ch_names_renamed = ['Fp1', 'F3', 'C3', 'P3', 'O1', 'Fp2', 'F4', 'C4', 'P4', 'O2', 'F7', 
                 'T3', 'T5', 'F8', 'T4', 'T6', 'Fz', 'Pz', 'Cz']
 
@@ -32,9 +32,13 @@ def plot_edges(importance, sub):
     # create an index for each tick position
     my_xticks = ch_names_renamed
     x = range(19)
-    
-    vmin = np.min(importance)
-    vmax = np.max(importance)
+
+    if min_max:
+        vmin = min_max[0]
+        vmax = min_max[1]
+    else:
+        vmin = np.min(importance)
+        vmax = np.max(importance)
     
     im = ax[0].imshow(importance[0], cmap='bwr', interpolation='nearest', vmin=vmin, vmax=vmax)
     ax[0].set_xticks(x, my_xticks,  rotation=90, fontsize=13)
@@ -55,6 +59,7 @@ def plot_edges(importance, sub):
     im5 = ax[4].imshow(importance[4], cmap='bwr', interpolation='nearest', vmin=vmin, vmax=vmax)
     ax[4].set_xticks(x, my_xticks,  rotation=90, fontsize=13)
     ax[4].set_yticks(x, my_xticks, fontsize=13)
+
     
     ax[0].set_title('Delta', fontsize=15)
     ax[1].set_title('Theta', fontsize=15)
@@ -162,6 +167,57 @@ def plot_frequency_bands_graphs(data_feat, sub):
         
     fig.savefig("figs/node_importance"+str(sub)+".pdf", bbox_inches='tight')
     
+    
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jan 30 07:34:26 2025
+
+@author: mohamedr
+"""
+
+import matplotlib.pyplot as plt
+import numpy as np
+import mne
+import matplotlib
+
+from mpl_toolkits.axes_grid1 import ImageGrid
+
+
+def plot_single_edges(importance, sub):
+    ch_names_renamed = ['Fp1', 'F3', 'C3', 'P3', 'O1', 'Fp2', 'F4', 'C4', 'P4', 'O2', 'F7', 
+                'T3', 'T5', 'F8', 'T4', 'T6', 'Fz', 'Pz', 'Cz']
+
+    fig = plt.figure(figsize=(20, 4))
+    ax = ImageGrid(fig, 111,
+                nrows_ncols = (1,1),
+                axes_pad = 0.15,
+                share_all=False,
+                cbar_location = "right",
+                cbar_mode="single",
+                cbar_size="5%",
+                cbar_pad=0.05
+                )
+    
+    # create an index for each tick position
+    my_xticks = ch_names_renamed
+    x = range(19)
+
+    vmin = np.min(importance)
+    vmax = np.max(importance)
+    
+    im = ax[0].imshow(importance, cmap='bwr', interpolation='nearest', vmin=vmin, vmax=vmax)
+    ax[0].set_xticks(x, my_xticks,  rotation=90, fontsize=13)
+    ax[0].set_yticks(x, my_xticks, fontsize=13)
+    
+    #ax[0].set_title('Theta', fontsize=15)
+    #fig.colorbar(im)
+    #fig.subplots_adjust(wspace=0.15)
+    plt.colorbar(im, cax=ax.cbar_axes[0], format='%0.04f')
+    fig.savefig("figs/edge_importance_AD_"+str(sub)+".pdf", bbox_inches='tight')
+    #plt.title(str(sub))
+    plt.show()
+    
 
 def plot_bands_per_regions(zeros, bands, name):
     # electrode positions for the graph nodes
@@ -207,5 +263,10 @@ def plot_bands_per_regions(zeros, bands, name):
         
     img, _ = mne.viz.plot_topomap(zeros, fake_evoked.info, show=False, cmap="bwr", 
                                   names=bands, size=6, mask_params=mask_params)
-    fig.savefig("figs/node_importance"+str(name)+".pdf", bbox_inches='tight')
+    fig1 = plt.gcf()
+
+    plt.show()
+    plt.draw()
+    fig1.savefig("figs/node_importance"+str(name)+".pdf", bbox_inches='tight')
+    
     

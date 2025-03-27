@@ -64,6 +64,7 @@ def trainer(num_epochs, model, train_iter, val_iter, kfold_num="None",
             x, idx, attr, y, batch = batch.x, batch.edge_index, batch.edge_attr, batch.y, batch.batch
             x = x.float()
             attr = attr.float()
+            
             idx = idx.long()
             optimizer.zero_grad()
             y_pred = model(x, idx, attr, batch)
@@ -83,6 +84,29 @@ def trainer(num_epochs, model, train_iter, val_iter, kfold_num="None",
             torch.save(model.state_dict(), "saved_models/kfold_model_"+str(kfold_num)+"_"+str(epoch)+"_.pt")
     return model, all_train_acc, all_val_acc       
         
+def trainer_regression(num_epochs, model, train_iter, val_iter, kfold_num="None", 
+            lr=0.001, report_accuracy=False):
+    print("Training Model....")
+    loss_func = nn.MSELoss()
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    model.train()
+    for epoch in range(num_epochs):
+        model.train()
+        for t, batch in enumerate(train_iter):
+            x, idx, attr, y, batch = batch.x, batch.edge_index, batch.edge_attr, batch.y, batch.batch
+            x = x.float()
+            attr = attr.float()
+            idx = idx.long()
+            optimizer.zero_grad()
+            y_pred = model(x, idx, attr, batch)
+            y_pred = y_pred.float()
+            y = y.float()
+            loss = loss_func(y_pred, y)
+            loss.backward()
+            optimizer.step() 
+
+    return model  
+
 
 def train_test_split_subjects(files, files_data, labels, random_seed=2025, 
                               skip_label=2, num_test_subjects=6):
