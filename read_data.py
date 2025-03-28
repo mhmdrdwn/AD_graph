@@ -15,11 +15,13 @@ from sklearn.model_selection import train_test_split
     
 import pandas as pd
 import os
-#import spkit as sp
-#imfrom scipy.stats import pearsonr, spearmanr
 
+from mne_connectivity import spectral_connectivity_epochs, SpectralConnectivity, spectral_connectivity_time
+    
+import neurokit2 as nk
+
+from scipy import signal, stats
 from scipy.signal import butter, sosfilt
-from mne_connectivity import spectral_connectivity_epochs,spectral_connectivity_time
 
 def eeg_bandpass(eeg, min_freq, max_freq):
     #this function get signal and range of frequencies we interested and filter out every other frequency components
@@ -66,135 +68,7 @@ def get_MMSE(file):
     label = np.array(files_data[files_data["participant_id"] == idx]["MMSE"])[0]
     return label
 
-    
-import json
-def data_annotations_caueeg(file):
-    f = open('../../../../caueeg/signal/dementia-no-overlap.json')
-    data = json.load(f)
-    files_metadata = {}
-    for file_data in data['train_split']:
-        key = file_data['serial']
-        value1 = 'train_split'
-        value2 = file_data['class_label']
-        files_metadata[key] = [value1, [value2]]
-    for file_data in data['test_split']:
-        key = file_data['serial']
-        value1 = 'test_split'
-        value2 = file_data['class_label']
-        files_metadata[key] = [value1, [value2]]
-    for file_data in data['validation_split']:
-        key = file_data['serial']
-        value1 = 'validation_split'
-        value2 = file_data['class_label']
-        files_metadata[key] = [value1, [value2]]
-    return files_metadata[file.split("/")[-1][:-4]]
-    
-
-import json
-def data_annotations_caueeg(file):
-    f = open('../../../../caueeg/signal/dementia-no-overlap.json')
-    data = json.load(f)
-    files_metadata = {}
-    for file_data in data['train_split']:
-        key = file_data['serial']
-        value1 = 'train_split'
-        value2 = file_data['class_label']
-        files_metadata[key] = [value2]
-    for file_data in data['test_split']:
-        key = file_data['serial']
-        value1 = 'test_split'
-        value2 = file_data['class_label']
-        files_metadata[key] = [value2]
-    for file_data in data['validation_split']:
-        key = file_data['serial']
-        value1 = 'validation_split'
-        value2 = file_data['class_label']
-        files_metadata[key] = [value2]
-    return files_metadata[file.split("/")[-1][:-4]]
-
-
-def calCorr(eegData, i, j):    
-    all_corr = []
-    for epoch_idx, epoch in enumerate(eegData):
-        corr1 = calculate_cc(epoch, i, j)
-        all_corr.append(corr1)
-    all_corr = np.array(all_corr)
-    return all_corr
-
-
-def calMI(eegData, i, j):    
-    all_mi = []
-    for epoch_idx, epoch in enumerate(eegData):
-        mi = sp.mutual_info(epoch[i], epoch[j])
-        all_mi.append(mi)
-    all_mi = np.array(all_mi)
-    return all_mi
-
-def calEnt(eegData, i, j):    
-    all_en = []
-    for epoch_idx, epoch in enumerate(eegData):
-        en = sp.entropy_kld(epoch[i], epoch[j])
-        all_en.append(en)
-    all_en = np.array(all_en)
-    return all_en
-    
-    
-def calPLV(eegData, i, j):    
-    all_plv = []
-    for epoch_idx, epoch in enumerate(eegData):
-        plv = hilphase(epoch[i], epoch[j])
-        all_plv.append(plv)
-    all_plv = np.array(all_plv)
-    return all_plv
-    
-def hilphase(x1,x2):
-    sig1_hill=signal.hilbert(x1)
-    sig2_hill=signal.hilbert(x2)
-    pdt=(np.inner(sig1_hill,np.conj(sig2_hill))/(np.sqrt(np.inner(sig1_hill,
-               np.conj(sig1_hill))*np.inner(sig2_hill,np.conj(sig2_hill)))))
-    phase = np.angle(pdt)
-    return phase
-    
-# Cross correlation 
-# https://github.com/ufvceiec/EEGRAPH/blob/develop-refactor/eegraph/strategy.py
-def calculate_cc(data_intervals, i, j):
-    x = data_intervals[i]
-    y = data_intervals[j]
-    
-    Rxy = signal.correlate(x,y, 'full')
-    Rxx = signal.correlate(x,x, 'full')
-    Ryy = signal.correlate(y,y, 'full')
-    
-    lags = np.arange(-len(data_intervals[i]) + 1, len(data_intervals[i]))
-    lag_0 = int((np.where(lags==0))[0])
-
-    Rxx_0 = Rxx[lag_0]
-    Ryy_0 = Ryy[lag_0]
-    
-    Rxy_norm = (1/(np.sqrt(Rxx_0*Ryy_0)))* Rxy
-    #We use the mean from lag 0 to a 10% displacement. 
-    disp = round((len(data_intervals[i])) * 0.10)
-    cc_coef = Rxy_norm[lag_0: lag_0 + disp].mean()
-    return cc_coef
-    
-
-def break_array2chunks(x, epoch_duration):
-    size = epoch_duration
-    step = int(epoch_duration*0.5)
-    trunc = x[x.shape[0]%size]
-    x = [x[i : i + size] for i in range(0, len(x), step)]
-    return x
-
-def break_all_array(x, size):
-    chunk_array = []
-    for ch_idx in range(x.shape[1]):
-        x_ch = x[:, ch_idx]
-        chunck = break_array2chunks(x_ch, size)
-        chunk_array.append(chunck[:-2])    
-    chunk_array = np.array(chunk_array)
-    return chunk_array
-
-
+        
 
 import numpy as np
 
@@ -232,129 +106,7 @@ def stack_arrays(x, g, y, task):
     out_g = out_g.reshape(out_x.shape[0], 19, 19, 15)
     return out_x, out_g, out_y
     
-import numpy as np
 from sklearn import preprocessing
-from sklearn.decomposition import FastICA, PCA
-
-
-from scipy import signal
-def cal_stft(train_X, test_X, nperseg=256):
-    train_stft = []
-    test_stft = []
-    fs = 256
-    WinLength = int(1*fs) # 500 points (0.5 sec, 500 ms)
-    step = int(0.05*fs) # 25 points (or 25 ms)
-    for x in train_X:
-        f, t, Zxx = signal.stft(x, fs, nperseg=nperseg)
-        Zxx = np.abs(Zxx)
-        Zxx = np.mean(Zxx, -1)
-        train_stft.append(Zxx)
-    test_stft = []
-    for x in test_X:
-        f, t, Zxx = signal.stft(x, fs, nperseg=nperseg)
-        Zxx = np.abs(Zxx)
-        Zxx = np.mean(Zxx, -1)
-        test_stft.append(Zxx)
-
-    train_X, test_X = train_stft, test_stft
-    
-    return train_X, test_X
-
-
-from scipy import signal
-def cal_stft(train_X, test_X, nperseg=128):
-    train_stft = []
-    test_stft = []
-    fs = 256
-    
-    for x in train_X:
-        f, t, Zxx = signal.spectrogram(x, fs, nperseg=nperseg, mode="magnitude", nfft=512)
-        Zxx = np.mean(Zxx, -1)
-        train_stft.append(Zxx)
-    test_stft = []
-    for x in test_X:
-        f, t, Zxx = signal.spectrogram(x, fs, nperseg=nperseg, mode="magnitude", nfft=512)
-        Zxx = np.mean(Zxx, -1)
-        test_stft.append(Zxx)
-
-    train_X, test_X = train_stft, test_stft
-    
-    return train_X, test_X
-
-
-import numpy as np
-
-def stack_arrays(x, g, y, task):
-    out_x = np.array(x[0])# np.moveaxis(np.float16(x[0]), 0, 1)
-    out_g = np.moveaxis(g[0], 0, -1)
-    out_g = np.moveaxis(out_g, 0, -1)
-    out_y = [y[0] for _ in range(out_x.shape[0])]
-    for arr, gr, yl in zip(x[1:], g[1:], y[1:]):
-        arr = np.array(arr)
-        #arr = np.moveaxis(arr, 0, 1)
-        out_x = np.concatenate((out_x, arr), axis=0)
-        gr = np.array(gr)
-        gr = np.moveaxis(gr, 0, -1)
-        gr = np.moveaxis(gr, 0, -1)
-        out_g = np.concatenate((out_g, gr), axis=0)
-        out_y.extend([yl for _ in range(arr.shape[0])])
-    
-    out_y_ = []
-    if task == "FTD" or task == "FTDandADvsControl":
-        for y in out_y:
-            if y[0] == 2:
-                out_y_.append([y[0]-1])
-            else:
-                out_y_.append(y)
-    elif task == "FTDvsAD":
-        for y in out_y:
-            out_y_.append([y[0]-1])
-    else:
-        out_y_ = out_y
-    
-    out_y = np.array(out_y_)
-    #out_x = np.moveaxis(out_x, 1, 2)
-    out_x = np.moveaxis(out_x, 2, -1)
-    out_g = out_g.reshape(out_x.shape[0], 19, 19, 20)
-    return out_x, out_g, out_y
-
-import numpy as np
-
-def stack_arrays(x, g, y, task):
-    out_g = np.moveaxis(g[0], 0, -1)
-    out_g = np.moveaxis(out_g, 0, -1)
-    out_y = [y[0] for _ in range(out_g.shape[0])]
-    out_x = np.moveaxis(x[0], 0, -1)
-    #out_x = np.moveaxis(out_x, 1, 2)
-    for arr, gr, yl in zip(x[1:], g[1:], y[1:]):
-        gr = np.array(gr)
-        gr = np.moveaxis(gr, 0, -1)
-        gr = np.moveaxis(gr, 0, -1)
-        arr = np.moveaxis(arr, 0, -1)
-        #arr = np.moveaxis(arr, 1, 2)
-        out_g = np.concatenate((out_g, gr), axis=0)
-        out_x = np.concatenate((out_x, arr), axis=0)
-        out_y.extend([yl for _ in range(arr.shape[0])])
-        
-    out_y_ = []
-    if task == "FTD" or task == "FTDandADvsControl":
-        for y in out_y:
-            if y[0] == 2:
-                out_y_.append([y[0]-1])
-            else:
-                out_y_.append(y)
-    elif task == "FTDvsAD":
-        for y in out_y:
-            out_y_.append([y[0]-1])
-    else:
-        out_y_ = out_y
-
-    out_y = np.array(out_y_)
-    out_g = out_g.reshape(out_g.shape[0], 19, 19, 15)
-    return out_x, out_g, out_y
-
-
-import numpy as np
 
 def stack_arrays(x, g, y, task):
     out_g = np.moveaxis(g[0], 0, -1)
@@ -389,7 +141,6 @@ def stack_arrays(x, g, y, task):
     out_g = out_g.reshape(out_g.shape[0], 19, 19, 15)
     return out_x, out_g, out_y
 
-import spkit as sp
 
 def normalize(data: np.ndarray, dim=1, norm="l2") -> np.ndarray:
     """Normalizes the data channel by channel
@@ -405,13 +156,7 @@ def normalize(data: np.ndarray, dim=1, norm="l2") -> np.ndarray:
     normalized_data = preprocessing.normalize(data, axis=dim, norm=norm)
     return normalized_data
 
-from mne_connectivity import spectral_connectivity_epochs, SpectralConnectivity, envelope_correlation
-    
 
-
-import neurokit2 as nk
-
-from scipy import signal, stats
 def cal_features(data):
     fs = 128
     out_dict = {}
