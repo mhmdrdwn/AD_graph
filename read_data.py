@@ -534,7 +534,7 @@ def build_data(raw_data, size, files_data, cal_conn=None, raw_eeg=False,
         data_labels[file] = label
         
         freq_ranges = [[1, 4],[4, 8], [8, 13], [13, 30], [30, 45]]
-        """
+        
         
         print("connectivity")
         if cal_conn=="all": 
@@ -585,7 +585,7 @@ def build_data(raw_data, size, files_data, cal_conn=None, raw_eeg=False,
             print("Conns", np.array(band_c).shape)
             data_graphs[file] = band_c
           
-          """
+          
         signal_dur = int(data_epochs.shape[-1]/resamling_fs)           
         resamling_fs = 128
         data_epochs = signal.resample(data_epochs, signal_dur*resamling_fs, axis=-1)

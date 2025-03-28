@@ -21,7 +21,7 @@ def predict(model, data_iter):
     ypreds = []
     
     model.eval()
-    ad_threeshold = 0.5
+    cn_threeshold = 0.5
     with torch.no_grad():
         for batch in data_iter:
             x, idx, attr, y, batch = batch.x, batch.edge_index, batch.edge_attr, batch.y, batch.batch
@@ -35,6 +35,7 @@ def predict(model, data_iter):
             yhat = yhat.detach().cpu().numpy()
             ytrue.extend([y_i for y_i in y])
             ypreds.extend([yhat_i for yhat_i in yhat])
+    print(ypreds)
     len_ypreds = len(ypreds)
     
     non_pathological = 0
@@ -42,13 +43,12 @@ def predict(model, data_iter):
     
     pathological_count = ypreds.count(1) # count predict labels 1
     no_pathological_count = ypreds.count(0)
-    if pathological_count >= ad_threeshold*len_ypreds: #if some pathological trails in subject
-        ypreds = [pathological for _ in range(len_ypreds)]
-    else:
+    if no_pathological_count >= cn_threeshold*len_ypreds: #if some pathological trails in subject
         ypreds = [non_pathological for _ in range(len_ypreds)]
+    else:
+        ypreds = [pathological for _ in range(len_ypreds)]
     
     return ytrue, ypreds
-
 
 def trainer(num_epochs, model, train_iter, val_iter, kfold_num="None", 
             lr=0.001, report_accuracy=False):
